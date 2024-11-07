@@ -620,7 +620,9 @@ function generateGoogleCalendarLink(rating: Events,flag:boolean): string {
     const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}${month}${day}T${hours}${minutes}`;
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}${month}${day}T${hours}${minutes}${seconds}`;
   };
 
   // Use local time (Asia/Kolkata)
@@ -663,7 +665,7 @@ export const events = async (rating: Events) => {
   const mailToReceiver = {
     from: process.env.EMAIL_USER,
     to: rating.receiverUser,
-    subject: 'Schedule the Event',
+    subject: `Schedule the Event on ${rating.eventDate}`,
     text: `The user having email Id ${rating.schedulerUser} has scheduled an Event with you, having title ${rating.title}, scheduled on ${rating.eventDate}. \n\nAdd to your Google Calendar: ${googleCalendarLinkSender}`,
   };
 
