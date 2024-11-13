@@ -335,17 +335,19 @@ export const events=async (rating:Events) => {
   });
 
   const mailToSender = {
-    from: process.env.EMAIL_USER,
-    to: rating.schedulerUser,
-    subject: 'Schedule the Event',
-    text: `You have Scheduled the meet with the user having email Id ${rating.receiverUser}, having title ${rating.title}`,
-  };
-  const mailToReceiver = {
-    from: process.env.EMAIL_USER,
-    to: rating.receiverUser,
-    subject: 'Schedule the Event',
-    text: `The user having email Id ${rating.schedulerUser} has scheduled an Event with You, having title ${rating.title} `,
-  };
+        from: process.env.EMAIL_USER,
+        to: rating.schedulerUser,
+        subject: `Schedule the Event on ${rating.eventDate}`,
+        text: `You have scheduled a meet with ${rating.receiverUser}, title: ${rating.title}, scheduled on ${rating.eventDate}. `,
+      };
+    
+      // Email details for receiver
+      const mailToReceiver = {
+        from: process.env.EMAIL_USER,
+        to: rating.receiverUser,
+        subject: `Schedule the Event on ${rating.eventDate}`,
+        text: `The user having email Id ${rating.schedulerUser} has scheduled an Event with you, having title ${rating.title}, scheduled on ${rating.eventDate}.`,
+      };
 
   await transporter.sendMail(mailToSender);
   await transporter.sendMail(mailToReceiver);
