@@ -18,6 +18,7 @@ interface IUser extends Document {
   avgRating?:number;
   totalRaters?:number;
   profilePic?: string; // Optional profile picture path
+  weight?:number;
   dob?:string;
   location?:string;
   certificate?:string;
@@ -27,7 +28,6 @@ interface IUser extends Document {
   position?:string;
   otp?:number;
   otpExpiry?:Date;
-  listOfSubscribers?:string[];
   matchPassword(password: string): Promise<boolean>;
 }
 
@@ -39,6 +39,7 @@ const UserSchema: Schema<IUser> = new Schema({
   password: { type: String, required: true },
   age: { type: Number, required: true },
   height: { type: Number, required: true },
+  weight: { type: Number, required: true },
   gender: { type: String, required: true },
   futureGoals: { type: String, required: false },
   achievements: { type: String, required: false },
@@ -56,7 +57,6 @@ const UserSchema: Schema<IUser> = new Schema({
   yoe:{type:Number,required:false},
   position:{type:String,required:false},
   otp:{type:Number,required:false},
-  listOfSubscribers:{type:[String],require:false},
   otpExpiry:{type: Date, default: Date.now},
 });
 
