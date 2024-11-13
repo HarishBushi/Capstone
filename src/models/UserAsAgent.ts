@@ -7,7 +7,7 @@ interface IuserAsAgent extends Document {
     email: string;
     password: string;
     professionalBackground:string;
-    descriptions:string;
+    descriptions:string[];
     specialization:string[];
     avgRating?:number;
     totalRaters?:number;
@@ -22,6 +22,7 @@ interface IuserAsAgent extends Document {
     position?:string;
     otp?:number;
     otpExpiry?:Date;
+    listOfSubscribers?:string[];
   matchPassword(password: string): Promise<boolean>;
 }
 
@@ -31,7 +32,7 @@ const UserAsAgentSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   professionalBackground:{ type: String, required: false },
-  descriptions:{ type: String, required: false },
+  descriptions:{ type: [String], required: false },
   specialization:{type: [String], required: false},
   avgRating:{ type: String, required: false },
   totalRaters:{ type: String, required: false },
@@ -45,7 +46,8 @@ const UserAsAgentSchema: Schema = new Schema({
   yoe:{type:Number,required:false},
   position:{type:String,required:false},
   otp:{type:Number,required:false},
-  otpExpiry:{type: Date, default: Date.now}
+  otpExpiry:{type: Date, default: Date.now},
+  listOfSubscribers:{type:[String],require:false},
 });
 
 UserAsAgentSchema.pre<IuserAsAgent>('save', async function (next) {

@@ -40,7 +40,7 @@ router.post('/register',
 router.post('/login', loginValidation, validate, login);
 router.post('/agentRating',verifyToken,ratingForAgent);
 router.post('/athletRating',verifyToken,ratingForAthlet);
-router.post('/setEvent',verifyToken,setEvent);
+router.post('/setEvent',setEvent);
 router.delete('/cancelEvent',verifyToken,delEvent);
 router.put('/rescheduleEvent',verifyToken,rescheduleEvent);
 router.post('/validate-otp',validateOTP);
@@ -61,88 +61,298 @@ router.get('/getAgentProfile',verifyToken,getAgentProfile)
 // router.post('/uploadProfilePic', upload.single('profilePic'), uploadProfilePicture)
 
 
+// interface UpdateUserProfileRequest extends Request {
+//   body: {
+//     email: string; // Use email instead of userId
+//     firstName?: string;
+//     lastName?: string;
+//     age?:number;
+//     height?:number;
+//     weight?:number;
+//     gender?:string;
+//     school?: string;
+//     sports?: string[];
+//     dob?:string;
+//     location?:string;
+//     position?:string;
+//     achievements?: string;
+//     futureGoals?: string;
+//     certificateName?:string;
+//   };
+//   file?: Express.Multer.File; // Include the file type for Multer
+// }
+// Update user profile with image upload
+// router.put('/profile', upload.single('profilePic'), async (req: UpdateUserProfileRequest, res: Response) => {
+//   const { email, firstName, lastName, achievements, futureGoals } = req.body;
+//   const profilePic = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : undefined;
+//   try {
+//     // Find user by email and update the fields
+//     const updatedUser = await User.findOneAndUpdate(
+//       { email }, // Search by email
+//       {
+//         firstName,
+//         lastName,
+//         achievements,
+//         futureGoals,
+//         ...(profilePic && { profilePic }), // Only include profilePic if it was uploaded
+//       },
+//       { new: true, runValidators: true } // Return the updated document
+//     ).select('firstName lastName achievements futureGoals profilePic email age height gender sports school isAthlet');
+
+//     if (!updatedUser) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+
+//     // Respond with the updated fields
+//     res.json({
+//       message: 'Profile updated successfully',
+//       user: updatedUser,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error updating profile', error: (error as Error).message });
+//   }
+// });
 interface UpdateUserProfileRequest extends Request {
   body: {
-    email: string; // Use email instead of userId
+    email: string;
     firstName?: string;
     lastName?: string;
+    age?: number;
+    height?: number;
+    weight?: number;
+    gender?: string;
+    school?: string;
+    sports?: string[];
+    dob?: string;
+    location?: string;                                                                                                                                                                                                                                                                                                                                                                                        
+    position?: string;
     achievements?: string;
     futureGoals?: string;
+    certificateName?: string;
+    stats?:string;
   };
-  file?: Express.Multer.File; // Include the file type for Multer
+  files?: {
+    profilePic?: Express.Multer.File[]; // Array for profilePic
+    certificate?: Express.Multer.File[]; // Array for certificate
+  } | {
+    [fieldname: string]: Express.Multer.File[]; // For other possible file types
+  } | Express.Multer.File[]; // For compatibility with other file array structures
 }
-// Update user profile with image upload
-router.put('/profile', upload.single('profilePic'), async (req: UpdateUserProfileRequest, res: Response) => {
-  const { email, firstName, lastName, achievements, futureGoals } = req.body;
-  const profilePic = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : undefined;
-  try {
-    // Find user by email and update the fields
-    const updatedUser = await User.findOneAndUpdate(
-      { email }, // Search by email
-      {
-        firstName,
-        lastName,
-        achievements,
-        futureGoals,
-        ...(profilePic && { profilePic }), // Only include profilePic if it was uploaded
-      },
-      { new: true, runValidators: true } // Return the updated document
-    ).select('firstName lastName achievements futureGoals profilePic email age height gender sports school isAthlet');
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found' });
+
+router.put(
+  '/profile',
+  upload.fields([
+    { name: 'profilePic', maxCount: 1 },
+    { name: 'certificate', maxCount: 1 }
+  ]),
+  async (req, res: Response) => {
+    const request = req as UpdateUserProfileRequest;
+
+    // Type narrow `request.files` to ensure properties exist
+    const profilePic =
+      request.files &&
+      'profilePic' in request.files &&
+      request.files.profilePic
+        ? `${req.protocol}://${req.get('host')}/uploads/${request.files.profilePic[0].filename}`
+        : undefined;
+
+    const certificate =
+      request.files &&
+      'certificate' in request.files &&
+      request.files.certificate
+        ? `${req.protocol}://${req.get('host')}/uploads/${request.files.certificate[0].filename}`
+        : undefined;
+
+    const {
+      email,
+      firstName,
+      lastName,
+      age,
+      height,
+      weight,
+      gender,
+      school,
+      sports,
+      dob,
+      location,
+      position,
+      achievements,
+      futureGoals,
+      certificateName,
+      stats
+    } = request.body;
+
+    try {
+      const updatedUser = await User.findOneAndUpdate(
+        { email },
+        {
+          firstName,
+          lastName,
+          age,
+          height,
+          weight,
+          gender,
+          school,
+          sports,
+          dob,
+          location,
+          position,
+          achievements,
+          futureGoals,
+          certificateName,
+          stats,
+          ...(profilePic && { profilePic }), // Only include if uploaded
+          ...(certificate && { certificate }) // Only include if uploaded
+        },
+        { new: true, runValidators: true }
+      ).select(
+        'email firstName lastName age height weight gender school sports dob location position achievements futureGoals profilePic certificate certificateName'
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({
+        message: 'Profile updated successfully',
+        user: updatedUser,
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Error updating profile', error: (error as Error).message });
     }
-
-    // Respond with the updated fields
-    res.json({
-      message: 'Profile updated successfully',
-      user: updatedUser,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating profile', error: (error as Error).message });
   }
-});
+);
+
+
 
 interface UpdateAgentsProfileRequest extends Request {
   body: {
-    email: string; // Use email instead of userId
+    email: string;
     firstName?: string;
     lastName?: string;
-    professionalBackground?: string;
-    descriptions?: string;
+    yoe?:number;
+    professionalBackground:string;
+    specialization:string[];
+    dob?: string;
+    location?: string;
+    position?: string;
+    descriptions?: string[];
+    stats?:string;
+    certificateName?: string;
   };
-  file?: Express.Multer.File; // Include the file type for Multer
+  files?: {
+    profilePic?: Express.Multer.File[]; // Array for profilePic
+    certificate?: Express.Multer.File[]; // Array for certificate
+  } | {
+    [fieldname: string]: Express.Multer.File[]; // For other possible file types
+  } | Express.Multer.File[]; // For compatibility with other file array structures
 }
-router.put('/profileAgent', upload.single('profilePic'), async (req: UpdateAgentsProfileRequest, res: Response) => {
-  const { email, firstName, lastName, professionalBackground, descriptions } = req.body;
-  const profilePic = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : undefined;
-  try {
-    // Find user by email and update the fields
-    const updatedUser = await UserAsAgent.findOneAndUpdate(
-      { email }, // Search by email
-      {
-        firstName,
-        lastName,
-        professionalBackground,
-        descriptions,
-        ...(profilePic && { profilePic }), // Only include profilePic if it was uploaded
-      },
-      { new: true, runValidators: true } // Return the updated document
-    ).select('firstName lastName achievements futureGoals profilePic email age height gender sports school isAthlet');
+// router.put('/profileAgent', upload.single('profilePic'), async (req: UpdateAgentsProfileRequest, res: Response) => {
+//   const { email, firstName, lastName, professionalBackground, descriptions } = req.body;
+//   const profilePic = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : undefined;
+//   try {
+//     // Find user by email and update the fields
+//     const updatedUser = await UserAsAgent.findOneAndUpdate(
+//       { email }, // Search by email
+//       {
+//         firstName,
+//         lastName,
+//         professionalBackground,
+//         descriptions,
+//         ...(profilePic && { profilePic }), // Only include profilePic if it was uploaded
+//       },
+//       { new: true, runValidators: true } // Return the updated document
+//     ).select('firstName lastName achievements futureGoals profilePic email age height gender sports school isAthlet');
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found' });
+//     if (!updatedUser) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+
+//     // Respond with the updated fields
+//     res.json({
+//       message: 'Profile updated successfully',
+//       user: updatedUser,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error updating profile', error: (error as Error).message });
+//   }
+// });
+router.put(
+  '/profileAgent',
+  upload.fields([
+    { name: 'profilePic', maxCount: 1 },
+    { name: 'certificate', maxCount: 1 }
+  ]),
+  async (req: UpdateAgentsProfileRequest, res: Response) => {
+    const request = req as UpdateAgentsProfileRequest;
+    const {
+      email,
+      firstName,
+      lastName,
+      yoe,
+      professionalBackground,
+      specialization,
+      dob,
+      location,
+      position,
+      descriptions,
+      stats,
+      certificateName
+    } = request.body;
+
+    // Extract file URLs if they were uploaded
+    const profilePic =
+      request.files &&
+      'profilePic' in request.files &&
+      request.files.profilePic
+        ? `${req.protocol}://${req.get('host')}/uploads/${request.files.profilePic[0].filename}`
+        : undefined;
+
+    const certificate =
+      request.files &&
+      'certificate' in request.files &&
+      request.files.certificate
+        ? `${req.protocol}://${req.get('host')}/uploads/${request.files.certificate[0].filename}`
+        : undefined;
+
+    try {
+      // Find user by email and update the fields
+      const updatedUser = await UserAsAgent.findOneAndUpdate(
+        { email },
+        {
+          firstName,
+          lastName,
+          yoe,
+          professionalBackground,
+          specialization,
+          dob,
+          location,
+          position,
+          descriptions,
+          stats,
+          certificateName,
+          ...(profilePic && { profilePic }), // Only include profilePic if uploaded
+          ...(certificate && { certificate }) // Only include certificate if uploaded
+        },
+        { new: true, runValidators: true } // Return the updated document
+      ).select('email firstName lastName yoe professionalBackground specialization dob location position descriptions stats certificateName profilePic certificate');
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Respond with the updated fields
+      res.json({
+        message: 'Profile updated successfully',
+        user: updatedUser,
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Error updating profile', error: (error as Error).message });
     }
-
-    // Respond with the updated fields
-    res.json({
-      message: 'Profile updated successfully',
-      user: updatedUser,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating profile', error: (error as Error).message });
   }
-});
+);
+
 router.post('/insert-sports', verifyToken, async (req, res) => {
   // Example route to insert sports, protected by the middleware
   const sports = [
