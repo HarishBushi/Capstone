@@ -11,6 +11,10 @@ import EventCreate from '../models/event';
 import mongoose, { Types } from 'mongoose';
 // import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import { google, calendar_v3 } from 'googleapis';
+import fs from 'fs';
+import path from 'path';
+import { OAuth2Client } from 'google-auth-library';
 
 dotenv.config();
 
@@ -88,24 +92,6 @@ export const registerUserAsAgent = async(userData: registerUserAsAgent)=>{
   const user = new UserAsAgent(userData);
   return await user.save();
 }
-
-
-// export const loginUser = async (email: string, password: string,isAthlet:boolean) => {
-//   const user = isAthlet?await User.findOne({ email }):await UserAsAgent.findOne({ email });
-//   if (!user) throw new Error('Invalid credentials');
-
-//   const isMatch = await user.matchPassword(password);
-//   if (!isMatch) throw new Error('Invalid credentials');
-
-//   // Generate JWT token
-//   const token = jwt.sign(
-//     { id: user._id, isAthlet: user.isAthlet },
-//     process.env.JWT_SECRET!,
-//     { expiresIn: '1h' }
-//   );
-
-//   return { token, userDetails: user };
-// };
 
 
 export const loginUser = async (email: string, password: string, isAthlet: boolean) => {
@@ -351,16 +337,14 @@ export const events=async (rating:Events) => {
   const mailToSender = {
     from: process.env.EMAIL_USER,
     to: rating.schedulerUser,
-    subject: `Schedule the Event on ${rating.eventDate}`,
-    text: `You have scheduled a meet with ${rating.receiverUser}, title: ${rating.title}, scheduled on ${rating.eventDate}.`,
+    subject: 'Schedule the Event',
+    text: `You have Scheduled the meet with the user having email Id ${rating.receiverUser}, having title ${rating.title}`,
   };
-
-  // Email details for receiver
   const mailToReceiver = {
     from: process.env.EMAIL_USER,
     to: rating.receiverUser,
-    subject: `Schedule the Event on ${rating.eventDate}`,
-    text: `The user having email Id ${rating.schedulerUser} has scheduled an Event with you, having title ${rating.title}, scheduled on ${rating.eventDate}.`,
+    subject: 'Schedule the Event',
+    text: `The user having email Id ${rating.schedulerUser} has scheduled an Event with You, having title ${rating.title} `,
   };
 
   await transporter.sendMail(mailToSender);
@@ -370,9 +354,9 @@ export const events=async (rating:Events) => {
 export const subscribeUsers =async (req:any)=>{
   const {subscriberId,subscribeeId}=req.body;
   try{
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: subscriberId },
-      { $addToSet: { listOfSubscribers: subscribeeId } }, // Only add if not already present
+    const updatedUser = await UserAsAgent.findOneAndUpdate(
+      { _id: subscribeeId },
+      { $addToSet: { listOfSubscribers: subscriberId } }, // Only add if not already present
       { new: true, runValidators: true } // Return the updated document with validation
     );
     return updatedUser;
@@ -505,87 +489,6 @@ export const getAgentProfiles = async (req: any) => {
 
   return userProfile; // Return the list of users
 };
-// export const getAthletRating=async (req:any,res:any) => {
-//   const query = {
-//     userId: req.query.userId, // Use MongoDB's $in operator to match any sport in the sports array
-//   };
-//   const ratings = await AthletRating.find(query)
-//   const averageRating = await AthletRating.aggregate([
-//     { $match: { userId: req.query.userId } }, // Filter by the agentId
-//     {
-//       $group: {
-//         _id: "$userId", // Group by agentId
-//         averageRating: { $avg: "$rating" } // Calculate the average rating
-//       }
-//     }
-//   ]);
-  
-//   if (!ratings || ratings.length === 0) {
-//     throw new Error('No ratings are there for the athlet');
-//   }
-//   return {ratings,averageRating};
-
-// };
-// export const getAthletRating = async (req: Request, res: Response) => {
-//   const query = {
-//         userId: req.query.userId, // Use MongoDB's $in operator to match any sport in the sports array
-//       };
-//       const ratings = await AthletRating.find(query)
-//       const averageRatingResult = await AthletRating.aggregate([
-//         { $match: { userId: req.query.userId } }, // Filter by the agentId
-//         {
-//           $group: {
-//             _id: "$userId", // Group by agentId
-//             averageRating: { $avg: "$rating" }, // Calculate the average rating
-//             totalRaters: { $sum: 1 }
-//           }
-//         }
-//       ]);
-      
-//       if (!ratings || ratings.length === 0) {
-//         throw new Error('No ratings are there for the athlet');
-//       }
-//       const { averageRating, totalRaters } = averageRatingResult[0] || { averageRating: 0, totalRaters: 0 };
-//       // const updatedUser = await User.findOneAndUpdate(
-//       //   { _id: new mongoose.Types.ObjectId(req.query.userId as string)  },
-//       //   { avgRating: averageRating, totalRaters: totalRaters },
-//       //   { new: true, runValidators: true } // Return the updated document
-//       // );
-//       // if (!updatedUser) {
-//       //   return res.status(404).json({ message: 'User not found' });
-//       // }
-  
-//       // Return the ratings and updated average rating
-//       res.json({ 
-//         message: 'Ratings fetched and user updated successfully',
-//         ratings,
-//         averageRating,
-//         totalRaters 
-//       });
-// };
-
-// export const getAgentRating=async (req:any,res:any) => {
-//   const query = {
-//     agentId: req.query.agentId, // Use MongoDB's $in operator to match any sport in the sports array
-//   };
-//   const ratings = await AgentRating.find(query)
-//   const averageRating = await AgentRating.aggregate([
-//     { $match: { agentId: req.query.agentId } }, // Filter by the agentId
-//     {
-//       $group: {
-//         _id: "$agentId", // Group by agentId
-//         averageRating: { $avg: "$rating" } // Calculate the average rating
-//       }
-//     }
-//   ]);
-  
-//   if (!ratings || ratings.length === 0) {
-//     throw new Error('No ratings are there for the agent');
-//   }
-  
-//   return {ratings,averageRating};
-
-// };
 
 export const getAgentRating = async (req: Request, res: Response) => {
   try {
@@ -691,3 +594,115 @@ export const getAthletRating = async (req: Request, res: Response) => {
     }
   }
 };
+// async function authorizeOAuth2(): Promise<OAuth2Client> {
+//   const { HARISH_IDD, HARISH_ID, REDIRECT } = process.env;
+
+//   const oAuth2Client = new google.auth.OAuth2(
+//     HARISH_IDD,
+//     HARISH_ID,
+//     REDIRECT
+//   );
+
+//   // Optionally, you can set the refresh token if you have one
+//   return oAuth2Client;
+// }
+
+// // Create a Google Calendar event using OAuth2
+// async function createGoogleCalendarEvent(auth: OAuth2Client, rating: Events): Promise<void> {
+//   const calendar = google.calendar({ version: 'v3', auth });
+
+//   const event: calendar_v3.Schema$Event = {
+//     summary: `Meeting: ${rating.title}`,
+//     description: `Scheduled meet with ${rating.receiverUser}.`,
+//     start: {
+//       dateTime: new Date(rating.eventDate).toISOString(),
+//       timeZone: 'Asia/Kolkata',
+//     },
+//     end: {
+//       dateTime: new Date(new Date(rating.eventDate).getTime() + 30 * 60 * 1000).toISOString(), // 30 mins duration
+//       timeZone: 'Asia/Kolkata',
+//     },
+//     attendees: [{ email: rating.receiverUser }],
+//   };
+
+//   try {
+//     const response = await calendar.events.insert({
+//       calendarId: 'primary',
+//       requestBody: event, // Changed `resource` to `requestBody` for TypeScript compatibility
+//     });
+//     console.log(`Event created: ${response.data?.htmlLink}`);
+//   } catch (error) {
+//     console.error('Error creating calendar event:', error);
+//   }
+// }
+
+// // Generate the Google Calendar event link
+// function generateGoogleCalendarLink(rating: Events,flag:boolean): string {
+//   const startDateTime = new Date(rating.eventDate);
+//   const endDateTime = new Date(startDateTime.getTime() + 30 * 60 * 1000); // 30 mins duration
+
+//   // Format date to 'YYYYMMDDTHHMMSS' (local time without 'Z')
+//   const formatDateTime = (date: Date): string => {
+//     const year = date.getFullYear();
+//     const month = String(date.getMonth() + 1).padStart(2, '0');
+//     const day = String(date.getDate()).padStart(2, '0');
+//     const hours = String(date.getHours()).padStart(2, '0');
+//     const minutes = String(date.getMinutes()).padStart(2, '0');
+//     const seconds = String(date.getSeconds()).padStart(2, '0');
+
+//     return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+//   };
+
+//   // Use local time (Asia/Kolkata)
+//   const formattedStartDateTime = formatDateTime(startDateTime);
+//   const formattedEndDateTime = formatDateTime(endDateTime);
+
+//   const eventSummary = encodeURIComponent(`Meeting: ${rating.title}`);
+//   const eventDescription =flag? encodeURIComponent(`Scheduled meet with ${rating.schedulerUser}.`):encodeURIComponent(`Scheduled meet with ${rating.receiverUser}.`);
+
+//   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventSummary}&dates=${formattedStartDateTime}/${formattedEndDateTime}&details=${eventDescription}&attendees=${encodeURIComponent(flag?rating.schedulerUser:rating.receiverUser)}`;
+
+// }
+
+// Send email and add a calendar event using OAuth2
+// export const events = async (rating: Events) => {
+//   // Configure nodemailer for email
+//   const transporter = nodemailer.createTransport({
+//     service: 'gmail',
+//     auth: {
+//       user: process.env.EMAIL_USER,
+//       pass: process.env.EMAIL_PASS,
+//     },
+//   });
+
+//   // Generate Google Calendar link
+//   const googleCalendarLink = generateGoogleCalendarLink(rating,false);
+//   const googleCalendarLinkSender = generateGoogleCalendarLink(rating,true);
+//   console.log(googleCalendarLink.toString())
+//   console.log(googleCalendarLinkSender.toString())
+
+//   // Email details for scheduler
+//   const mailToSender = {
+//     from: process.env.EMAIL_USER,
+//     to: rating.schedulerUser,
+//     subject: `Schedule the Event on ${rating.eventDate}`,
+//     text: `You have scheduled a meet with ${rating.receiverUser}, title: ${rating.title}, scheduled on ${rating.eventDate}. \n\nAdd to your Google Calendar: ${googleCalendarLink}`,
+//   };
+
+//   // Email details for receiver
+//   const mailToReceiver = {
+//     from: process.env.EMAIL_USER,
+//     to: rating.receiverUser,
+//     subject: `Schedule the Event on ${rating.eventDate}`,
+//     text: `The user having email Id ${rating.schedulerUser} has scheduled an Event with you, having title ${rating.title}, scheduled on ${rating.eventDate}. \n\nAdd to your Google Calendar: ${googleCalendarLinkSender}`,
+//   };
+
+//   // Send emails
+//   await transporter.sendMail(mailToSender);
+//   await transporter.sendMail(mailToReceiver);
+//   console.log('Emails sent successfully');
+
+//   // Authorize with OAuth2 and create a calendar event
+//   const auth = await authorizeOAuth2();
+//   await createGoogleCalendarEvent(auth, rating);
+// };
